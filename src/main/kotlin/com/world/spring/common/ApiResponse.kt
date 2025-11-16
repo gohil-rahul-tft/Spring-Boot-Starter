@@ -29,7 +29,7 @@ data class ApiResponse<T>(
                     ApiResponse(status = false, message = message, data = emptyMap<String, Any>() as T)
 
                 else ->
-                    ApiResponse(status = false, message = message, data = emptyMap<String, Any>() as T)
+                    ApiResponse(status = false, message = message, data = null)
             }
         }
 
