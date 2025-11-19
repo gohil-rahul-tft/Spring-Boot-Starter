@@ -14,30 +14,17 @@ class TodoController(private val todoService: TodoService) {
 
     @GetMapping
     fun getAllTodos(): ResponseEntity<ApiResponse<List<TodoResponse>>> {
-        return try {
-            val todos = todoService.getAllTodos().map { it.toResponse() }
-            ResponseEntity.ok(ApiResponse.success(todos, "Todos retrieved successfully"))
-        } catch (e: Exception) {
-            ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(ApiResponse.errorTyped<List<TodoResponse>>("Failed to retrieve todos: ${e.message}"))
-        }
+        val todos = todoService.getAllTodos().map { it.toResponse() }
+        return ResponseEntity.ok(ApiResponse.success(todos, "Todos retrieved successfully"))
     }
 
     @GetMapping("/{id}")
     fun getTodoById(@PathVariable id: Long): ResponseEntity<ApiResponse<TodoResponse>> {
-        return try {
-            validateId(id)
-            val todo = todoService.getTodoById(id)
-                ?: return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .body(ApiResponse.errorTyped<TodoResponse>("Todo with ID $id not found"))
-            ResponseEntity.ok(ApiResponse.success(todo.toResponse(), "Todo retrieved successfully"))
-        } catch (e: IllegalArgumentException) {
-            ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(ApiResponse.errorTyped<TodoResponse>("Invalid ID: ${e.message}"))
-        } catch (e: Exception) {
-            ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(ApiResponse.errorTyped<TodoResponse>("Failed to retrieve todo: ${e.message}"))
-        }
+        validateId(id)
+        val todo = todoService.getTodoById(id)
+            ?: return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(ApiResponse.error<TodoResponse>("Todo with ID $id not found"))
+        return ResponseEntity.ok(ApiResponse.success(todo.toResponse(), "Todo retrieved successfully"))
     }
 
     @PostMapping
@@ -97,32 +84,19 @@ class TodoController(private val todoService: TodoService) {
 
     @DeleteMapping("/{id}")
     fun deleteTodo(@PathVariable id: Long): ResponseEntity<ApiResponse<Unit>> {
-        return try {
-            validateId(id)
-            val deleted = todoService.deleteTodo(id)
-            if (!deleted) {
-                return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .body(ApiResponse.error("Todo with ID $id not found"))
-            }
-            ResponseEntity.ok(ApiResponse.success("Todo deleted successfully"))
-        } catch (e: IllegalArgumentException) {
-            ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(ApiResponse.error("Invalid ID: ${e.message}"))
-        } catch (e: Exception) {
-            ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(ApiResponse.error("Failed to delete todo: ${e.message}"))
+        validateId(id)
+        val deleted = todoService.deleteTodo(id)
+        if (!deleted) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(ApiResponse.error("Todo with ID $id not found"))
         }
+        return ResponseEntity.ok(ApiResponse.success("Todo deleted successfully"))
     }
 
     @DeleteMapping
     fun deleteAllTodos(): ResponseEntity<ApiResponse<Unit>> {
-        return try {
-            todoService.deleteAllTodos()
-            ResponseEntity.ok(ApiResponse.success("All todos deleted successfully"))
-        } catch (e: Exception) {
-            ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(ApiResponse.error("Failed to delete all todos: ${e.message}"))
-        }
+        todoService.deleteAllTodos()
+        return ResponseEntity.ok(ApiResponse.success("All todos deleted successfully"))
     }
 
     private fun validateId(id: Long) {

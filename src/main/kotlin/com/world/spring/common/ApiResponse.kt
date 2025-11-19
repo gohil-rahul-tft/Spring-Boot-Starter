@@ -1,37 +1,32 @@
 package com.world.spring.common
 
-data class ApiResponse<T>(
-    val status: Boolean,
-    val message: String,
-    val data: T? = null,
-) {
+sealed class ApiResponse<out T> {
+    abstract val status: Boolean
+    abstract val message: String
+
+    data class Success<T>(
+        override val status: Boolean = true,
+        override val message: String,
+        val data: T,
+    ) : ApiResponse<T>()
+
+    data class Error<T>(
+        override val status: Boolean = false,
+        override val message: String,
+        val data: T? = null,
+    ) : ApiResponse<T>()
+
     companion object {
         fun <T> success(data: T, message: String = "Success"): ApiResponse<T> {
-            return ApiResponse(status = true, message = message, data = data)
+            return Success(message = message, data = data)
         }
 
         fun success(message: String = "Success"): ApiResponse<Unit> {
-            return ApiResponse(status = true, message = message, data = null)
+            return Success(message = message, data = Unit)
         }
 
         fun <T> error(message: String, data: T? = null): ApiResponse<T> {
-            return ApiResponse(status = false, message = message, data = data)
+            return Error(message = message, data = data)
         }
-
-        // Generic convenience for callers who want the library to pick [] vs {} based on reified T
-        @Suppress("UNCHECKED_CAST")
-        inline fun <reified T> errorTyped(message: String = "Error"): ApiResponse<T> {
-            return when {
-                Collection::class.java.isAssignableFrom(T::class.java) ->
-                    ApiResponse(status = false, message = message, data = emptyList<Any>() as T)
-
-                Map::class.java.isAssignableFrom(T::class.java) ->
-                    ApiResponse(status = false, message = message, data = emptyMap<String, Any>() as T)
-
-                else ->
-                    ApiResponse(status = false, message = message, data = null)
-            }
-        }
-
     }
 }

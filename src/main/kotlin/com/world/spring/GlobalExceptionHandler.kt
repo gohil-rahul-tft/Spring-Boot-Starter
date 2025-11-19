@@ -20,16 +20,19 @@ data class ApiError(
 @RestControllerAdvice(basePackages = ["com.world.spring"])
 class GlobalExceptionHandler {
 
+    @ExceptionHandler(IllegalArgumentException::class)
+    fun handleIllegalArgumentException(ex: IllegalArgumentException, request: WebRequest): ResponseEntity<ApiResponse<Any?>> {
+        return ResponseEntity
+            .status(HttpStatus.BAD_REQUEST)
+            .body(ApiResponse.error("Invalid ID: ${ex.message}"))
+    }
+
     @ExceptionHandler(Exception::class)
-    fun handleGeneralException(ex: Exception, request: WebRequest): ResponseEntity<ApiError> {
-        val error = ApiError(
-            timestamp = LocalDateTime.now(),
-            status = HttpStatus.INTERNAL_SERVER_ERROR.value(),
-            error = HttpStatus.INTERNAL_SERVER_ERROR.reasonPhrase,
-            message = ex.message,
-            path = request.getDescription(false).substringAfter("uri=")
-        )
-        return ResponseEntity(error, HttpStatus.INTERNAL_SERVER_ERROR)
+    fun handleGeneralException(ex: Exception, request: WebRequest): ResponseEntity<ApiResponse<Any?>> {
+        val message = "An unexpected error occurred: ${ex.message}"
+        return ResponseEntity
+            .status(HttpStatus.INTERNAL_SERVER_ERROR)
+            .body(ApiResponse.error(message))
     }
 
     @ExceptionHandler(MethodArgumentNotValidException::class)
