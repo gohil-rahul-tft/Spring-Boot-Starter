@@ -5,6 +5,7 @@ server:
 logging:
   level:
     com.world.spring: DEBUG
+    org.springframework.security: DEBUG
     org.springframework.web: INFO
 
 spring:
@@ -28,3 +29,7 @@ spring:
     multipart:
       max-file-size: 200MB
       max-request-size: 200MB
+
+jwt:
+  secret: "R5i8RMVu4bHHBD2N6dvtGD1Hl+xUkO+BpSt7gXwNzhA="
+  expiration: 86400000 # 24 hours

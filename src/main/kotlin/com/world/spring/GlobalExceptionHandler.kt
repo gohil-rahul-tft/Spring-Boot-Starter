@@ -3,6 +3,8 @@ package com.world.spring
 import com.world.spring.common.ApiResponse
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
+import org.springframework.security.access.AccessDeniedException
+import org.springframework.security.core.AuthenticationException
 import org.springframework.web.bind.MethodArgumentNotValidException
 import org.springframework.web.bind.annotation.ExceptionHandler
 import org.springframework.web.bind.annotation.RestControllerAdvice
@@ -27,12 +29,20 @@ class GlobalExceptionHandler {
             .body(ApiResponse.error("Invalid ID: ${ex.message}"))
     }
 
-    @ExceptionHandler(Exception::class)
-    fun handleGeneralException(ex: Exception, request: WebRequest): ResponseEntity<ApiResponse<Any?>> {
-        val message = "An unexpected error occurred: ${ex.message}"
+    @ExceptionHandler(AccessDeniedException::class)
+    fun handleAccessDenied(ex: AccessDeniedException, request: WebRequest): ResponseEntity<ApiResponse<Any?>> {
+        // 403 Forbidden
         return ResponseEntity
-            .status(HttpStatus.INTERNAL_SERVER_ERROR)
-            .body(ApiResponse.error(message))
+            .status(HttpStatus.FORBIDDEN)
+            .body(ApiResponse.error("access denied"))
+    }
+
+    @ExceptionHandler(AuthenticationException::class)
+    fun handleAuthenticationException(ex: AuthenticationException, request: WebRequest): ResponseEntity<ApiResponse<Any?>> {
+        // This is a fallback for any AuthenticationException that reaches controller layer.
+        return ResponseEntity
+            .status(HttpStatus.UNAUTHORIZED)
+            .body(ApiResponse.error("authentication failed"))
     }
 
     @ExceptionHandler(MethodArgumentNotValidException::class)
@@ -45,6 +55,14 @@ class GlobalExceptionHandler {
         val message = "Validation failed: ${errors.joinToString(", ")}"
         return ResponseEntity
             .status(HttpStatus.UNPROCESSABLE_ENTITY)
+            .body(ApiResponse.error(message))
+    }
+
+    @ExceptionHandler(Exception::class)
+    fun handleGeneralException(ex: Exception, request: WebRequest): ResponseEntity<ApiResponse<Any?>> {
+        val message = "An unexpected error occurred: ${ex.message}"
+        return ResponseEntity
+            .status(HttpStatus.INTERNAL_SERVER_ERROR)
             .body(ApiResponse.error(message))
     }
 }

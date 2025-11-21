@@ -3,7 +3,38 @@
 This is a Spring Boot CRUD application with in-memory storage for todos. All responses follow a consistent API wrapper format and proper error handling.
 
 ## Base URL
-`http://localhost:8081`
+`http://localhost:8082`
+
+## Authentication
+This API uses JWT for authentication. To access protected endpoints, you need to include a JWT token in the `Authorization` header of your request.
+
+`Authorization: Bearer <your_jwt_token>`
+
+### 1. Register
+- **POST** `/api/auth/register`
+- **Description**: Register a new user.
+- **Content-Type**: `application/json`
+- **Request Body**:
+  ```json
+  {
+    "username": "string (required)",
+    "password": "string (required)"
+  }
+  ```
+- **Response**: `200 OK` with a success message, or `400 Bad Request` if the username is already taken.
+
+### 2. Login
+- **POST** `/api/auth/login`
+- **Description**: Authenticate a user and get a JWT token.
+- **Content-Type**: `application/json`
+- **Request Body**:
+  ```json
+  {
+    "username": "string (required)",
+    "password": "string (required)"
+  }
+  ```
+- **Response**: `200 OK` with `AuthResponse` containing the JWT token.
 
 ## Response Format
 All API responses follow this wrapper format:
@@ -19,23 +50,24 @@ All API responses follow this wrapper format:
 - `200 OK` - Successful GET, PUT, PATCH and DELETE requests
 - `201 Created` - Successful POST request
 - `400 Bad Request` - Invalid request parameters (negative IDs, etc.)
+- `401 Unauthorized` - Authentication failed
 - `404 Not Found` - Resource not found
 - `422 Unprocessable Entity` - Validation errors
 - `500 Internal Server Error` - Server errors
 
 ## Endpoints
 
-### 1. Get All Todos
+### 3. Get All Todos
 - **GET** `/api/todos`
 - **Description**: Retrieve all todos
 - **Response**: `200 OK` with `ApiResponse<List<TodoResponse>>`
 
-### 2. Get Todo by ID
+### 4. Get Todo by ID
 - **GET** `/api/todos/{id}`
 - **Description**: Retrieve a specific todo by ID
 - **Response**: `200 OK` with `ApiResponse<TodoResponse>`, or `404 Not Found` if todo doesn't exist
 
-### 3. Create Todo
+### 5. Create Todo
 - **POST** `/api/todos`
 - **Content-Type**: `application/json`
 - **Request Body**:
@@ -49,7 +81,7 @@ All API responses follow this wrapper format:
 - **Response**: `201 Created` with `ApiResponse<TodoResponse>`
 - **Validation**: Returns `422 Unprocessable Entity` for validation errors
 
-### 4. Update Todo
+### 6. Update Todo
 - **PUT** `/api/todos/{id}`
 - **Content-Type**: `application/json`
 - **Request Body**:
@@ -63,7 +95,7 @@ All API responses follow this wrapper format:
 - **Response**: `200 OK` with `ApiResponse<TodoResponse>`, or `404 Not Found` if todo doesn't exist
 - **Validation**: Returns `422 Unprocessable Entity` for validation errors
 
-### 5. Partial Update Todo
+### 7. Partial Update Todo
 - **PATCH** `/api/todos/{id}`
 - **Content-Type**: `application/json`
 - **Request Body** (only specify fields to update):
@@ -77,12 +109,12 @@ All API responses follow this wrapper format:
 - **Response**: `200 OK` with `ApiResponse<TodoResponse>`, or `404 Not Found` if todo doesn't exist
 - **Validation**: Returns `422 Unprocessable Entity` for validation errors
 
-### 6. Delete Todo
+### 8. Delete Todo
 - **DELETE** `/api/todos/{id}`
 - **Description**: Delete a specific todo by ID
 - **Response**: `200 OK` with `ApiResponse<Unit>`, or `404 Not Found` if todo doesn't exist
 
-### 7. Delete All Todos
+### 9. Delete All Todos
 - **DELETE** `/api/todos`
 - **Description**: Delete all todos
 - **Response**: `200 OK` with `ApiResponse<Unit>`
@@ -94,9 +126,30 @@ All API responses follow this wrapper format:
 
 ## Example Usage
 
+### Register a new user:
+```bash
+curl -X POST http://localhost:8082/api/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{
+    "username": "user",
+    "password": "password"
+  }'
+```
+
+### Login:
+```bash
+curl -X POST http://localhost:8082/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{
+    "username": "user",
+    "password": "password"
+  }'
+```
+
 ### Create a new todo:
 ```bash
-curl -X POST http://localhost:8081/api/todos \
+curl -X POST http://localhost:8082/api/todos \
+  -H "Authorization: Bearer <your_jwt_token>" \
   -H "Content-Type: application/json" \
   -d '{
     "title": "Learn Spring Boot",
@@ -107,12 +160,14 @@ curl -X POST http://localhost:8081/api/todos \
 
 ### Get all todos:
 ```bash
-curl -X GET http://localhost:8081/api/todos
+curl -X GET http://localhost:8082/api/todos \
+  -H "Authorization: Bearer <your_jwt_token>"
 ```
 
 ### Update a todo:
 ```bash
-curl -X PUT http://localhost:8081/api/todos/1 \
+curl -X PUT http://localhost:8082/api/todos/1 \
+  -H "Authorization: Bearer <your_jwt_token>" \
   -H "Content-Type: application/json" \
   -d '{
     "title": "Learn Spring Boot with Kotlin",
@@ -123,7 +178,8 @@ curl -X PUT http://localhost:8081/api/todos/1 \
 
 ### Delete a todo:
 ```bash
-curl -X DELETE http://localhost:8081/api/todos/1
+curl -X DELETE http://localhost:8082/api/todos/1 \
+  -H "Authorization: Bearer <your_jwt_token>"
 ```
 
 ### Example Response Format:
