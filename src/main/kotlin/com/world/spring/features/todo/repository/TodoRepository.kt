@@ -1,4 +1,6 @@
-package com.world.spring.todo
+package com.world.spring.features.todo.repository
+
+import com.world.spring.features.todo.entity.Todo
 
 interface TodoRepository {
     fun findAll(): List<Todo>

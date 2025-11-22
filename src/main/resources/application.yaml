@@ -1,3 +1,35 @@
+server:
+  port: 8081
+  connection-timeout: 120s
+
+logging:
+  level:
+    com.world.spring: DEBUG
+    org.springframework.security: DEBUG
+    org.springframework.web: INFO
+
 spring:
   application:
     name: spring
+  datasource:
+    url: jdbc:h2:mem:todoapp
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: password
+  jpa:
+    database-platform: org.hibernate.dialect.H2Dialect
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+  servlet:
+    multipart:
+      max-file-size: 200MB
+      max-request-size: 200MB
+
+jwt:
+  secret: "R5i8RMVu4bHHBD2N6dvtGD1Hl+xUkO+BpSt7gXwNzhA="
+  expiration: 86400000 # 24 hours

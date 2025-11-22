@@ -1,12 +1,18 @@
-package com.world.spring.todo
+package com.world.spring.features.todo.controller
 
-import com.world.spring.common.ApiResponse
+import com.world.spring.shared.annotations.AdminOnly
+import com.world.spring.shared.response.ApiResponse
+import com.world.spring.features.todo.dto.CreateTodoRequest
+import com.world.spring.features.todo.dto.UpdateTodoRequest
+import com.world.spring.features.todo.dto.TodoResponse
+import com.world.spring.features.todo.dto.toResponse
+import com.world.spring.features.todo.entity.Todo
+import com.world.spring.features.todo.entity.applyUpdate
+import com.world.spring.features.todo.service.TodoService
 import jakarta.validation.Valid
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
-import org.springframework.validation.BindingResult
 import org.springframework.web.bind.annotation.*
-import org.springframework.web.server.ResponseStatusException
 
 @RestController
 @RequestMapping("/api/todos")
@@ -14,30 +20,17 @@ class TodoController(private val todoService: TodoService) {
 
     @GetMapping
     fun getAllTodos(): ResponseEntity<ApiResponse<List<TodoResponse>>> {
-        return try {
-            val todos = todoService.getAllTodos().map { it.toResponse() }
-            ResponseEntity.ok(ApiResponse.success(todos, "Todos retrieved successfully"))
-        } catch (e: Exception) {
-            ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(ApiResponse.errorTyped<List<TodoResponse>>("Failed to retrieve todos: ${e.message}"))
-        }
+        val todos = todoService.getAllTodos().map { it.toResponse() }
+        return ResponseEntity.ok(ApiResponse.success(todos, "Todos retrieved successfully"))
     }
 
     @GetMapping("/{id}")
     fun getTodoById(@PathVariable id: Long): ResponseEntity<ApiResponse<TodoResponse>> {
-        return try {
-            validateId(id)
-            val todo = todoService.getTodoById(id)
-                ?: return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .body(ApiResponse.errorTyped<TodoResponse>("Todo with ID $id not found"))
-            ResponseEntity.ok(ApiResponse.success(todo.toResponse(), "Todo retrieved successfully"))
-        } catch (e: IllegalArgumentException) {
-            ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(ApiResponse.errorTyped<TodoResponse>("Invalid ID: ${e.message}"))
-        } catch (e: Exception) {
-            ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(ApiResponse.errorTyped<TodoResponse>("Failed to retrieve todo: ${e.message}"))
-        }
+        validateId(id)
+        val todo = todoService.getTodoById(id)
+            ?: return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(ApiResponse.error<TodoResponse>("Todo with ID $id not found"))
+        return ResponseEntity.ok(ApiResponse.success(todo.toResponse(), "Todo retrieved successfully"))
     }
 
     @PostMapping
@@ -95,34 +88,31 @@ class TodoController(private val todoService: TodoService) {
         return ResponseEntity.ok(ApiResponse.success(patchedTodo.toResponse(), "Todo updated successfully"))
     }
 
+    /**
+     * Only ADMIN can delete todos.
+     * USER role will be rejected with 403 (access denied) handled by GlobalExceptionHandler.
+     */
+    @AdminOnly
     @DeleteMapping("/{id}")
     fun deleteTodo(@PathVariable id: Long): ResponseEntity<ApiResponse<Unit>> {
-        return try {
-            validateId(id)
-            val deleted = todoService.deleteTodo(id)
-            if (!deleted) {
-                return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .body(ApiResponse.error("Todo with ID $id not found"))
-            }
-            ResponseEntity.ok(ApiResponse.success("Todo deleted successfully"))
-        } catch (e: IllegalArgumentException) {
-            ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(ApiResponse.error("Invalid ID: ${e.message}"))
-        } catch (e: Exception) {
-            ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(ApiResponse.error("Failed to delete todo: ${e.message}"))
+        validateId(id)
+        val deleted = todoService.deleteTodo(id)
+        if (!deleted) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(ApiResponse.error("Todo with ID $id not found"))
         }
+        return ResponseEntity.ok(ApiResponse.success("Todo deleted successfully"))
     }
 
+    /**
+     * Only ADMIN can delete todos.
+     * USER role will be rejected with 403 (access denied) handled by GlobalExceptionHandler.
+     */
+    @AdminOnly
     @DeleteMapping
     fun deleteAllTodos(): ResponseEntity<ApiResponse<Unit>> {
-        return try {
-            todoService.deleteAllTodos()
-            ResponseEntity.ok(ApiResponse.success("All todos deleted successfully"))
-        } catch (e: Exception) {
-            ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(ApiResponse.error("Failed to delete all todos: ${e.message}"))
-        }
+        todoService.deleteAllTodos()
+        return ResponseEntity.ok(ApiResponse.success("All todos deleted successfully"))
     }
 
     private fun validateId(id: Long) {

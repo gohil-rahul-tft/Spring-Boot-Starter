@@ -1,5 +1,7 @@
-package com.world.spring.todo
+package com.world.spring.features.todo.service
 
+import com.world.spring.features.todo.entity.Todo
+import com.world.spring.features.todo.repository.TodoRepository
 import org.springframework.stereotype.Service
 import java.util.*
 

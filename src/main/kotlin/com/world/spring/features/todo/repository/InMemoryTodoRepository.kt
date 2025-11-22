@@ -1,5 +1,6 @@
-package com.world.spring.todo
+package com.world.spring.features.todo.repository
 
+import com.world.spring.features.todo.entity.Todo
 import org.springframework.stereotype.Repository
 import java.time.LocalDateTime
 import java.util.concurrent.ConcurrentHashMap
