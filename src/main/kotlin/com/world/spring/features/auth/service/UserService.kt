@@ -32,4 +32,12 @@ class UserService(
 
     fun findByUsername(username: String): UserEntity? =
         userRepository.findByUsername(username).orElse(null)
+
+    /**
+     * Get user ID by username
+     * @return user ID or null if user not found
+     */
+    fun getUserIdByUsername(username: String): Long? {
+        return findByUsername(username)?.id
+    }
 }

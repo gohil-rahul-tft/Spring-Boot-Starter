@@ -22,6 +22,10 @@ class InMemoryTodoRepository : TodoRepository {
         return todos.values.toList()
     }
 
+    override fun findAllByUserId(userId: Long): List<Todo> {
+        return todos.values.filter { it.userId == userId }
+    }
+
     override fun findById(id: Long): Todo? {
         return todos[id]
     }

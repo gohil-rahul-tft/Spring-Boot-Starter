@@ -1,5 +1,7 @@
 package com.world.spring.features.todo.controller
 
+import com.world.spring.features.auth.service.UserService
+import com.world.spring.shared.SecurityUtils
 import com.world.spring.shared.annotations.AdminOnly
 import com.world.spring.shared.response.ApiResponse
 import com.world.spring.features.todo.dto.CreateTodoRequest
@@ -24,14 +26,17 @@ import org.springframework.web.bind.annotation.*
 
 @RestController
 @RequestMapping("/api/todos")
-@Tag(name = "Todo Management", description = "CRUD operations for managing todos")
+@Tag(name = "Todo Management", description = "CRUD operations for managing todos with user-based authorization")
 @SecurityRequirement(name = "bearerAuth")
-class TodoController(private val todoService: TodoService) {
+class TodoController(
+    private val todoService: TodoService,
+    private val userService: UserService
+) {
 
     @GetMapping
     @Operation(
         summary = "Get all todos",
-        description = "Retrieves a list of all todos for the authenticated user"
+        description = "Retrieves todos for the authenticated user. Admins can see all todos, regular users only see their own."
     )
     @ApiResponses(
         value = [
@@ -40,19 +45,21 @@ class TodoController(private val todoService: TodoService) {
         ]
     )
     fun getAllTodos(): ResponseEntity<ApiResponse<List<TodoResponse>>> {
-        val todos = todoService.getAllTodos().map { it.toResponse() }
+        val (userId, isAdmin) = getUserContext()
+        val todos = todoService.getAllTodos(userId, isAdmin).map { it.toResponse() }
         return ResponseEntity.ok(ApiResponse.success(todos, "Todos retrieved successfully"))
     }
 
     @GetMapping("/{id}")
     @Operation(
         summary = "Get todo by ID",
-        description = "Retrieves a specific todo by its ID"
+        description = "Retrieves a specific todo by its ID. Users can only view their own todos, admins can view any todo."
     )
     @ApiResponses(
         value = [
             SwaggerApiResponse(responseCode = "200", description = "Todo retrieved successfully"),
             SwaggerApiResponse(responseCode = "400", description = "Bad request - Invalid ID format"),
+            SwaggerApiResponse(responseCode = "403", description = "Forbidden - You don't have permission to access this todo"),
             SwaggerApiResponse(responseCode = "404", description = "Todo not found"),
             SwaggerApiResponse(responseCode = "401", description = "Unauthorized")
         ]
@@ -62,7 +69,8 @@ class TodoController(private val todoService: TodoService) {
         @PathVariable id: Long
     ): ResponseEntity<ApiResponse<TodoResponse>> {
         validateId(id)
-        val todo = todoService.getTodoById(id)
+        val (userId, isAdmin) = getUserContext()
+        val todo = todoService.getTodoById(id, userId, isAdmin)
             ?: return ResponseEntity.status(HttpStatus.NOT_FOUND)
                 .body(ApiResponse.error<TodoResponse>("Todo with ID $id not found"))
         return ResponseEntity.ok(ApiResponse.success(todo.toResponse(), "Todo retrieved successfully"))
@@ -71,7 +79,7 @@ class TodoController(private val todoService: TodoService) {
     @PostMapping
     @Operation(
         summary = "Create a new todo",
-        description = "Creates a new todo item with the provided details"
+        description = "Creates a new todo item for the authenticated user. The userId is automatically set from the authentication context."
     )
     @ApiResponses(
         value = [
@@ -85,12 +93,14 @@ class TodoController(private val todoService: TodoService) {
         @Parameter(description = "Todo creation request", required = true)
         @Valid @RequestBody createRequest: CreateTodoRequest
     ): ResponseEntity<ApiResponse<TodoResponse>> {
+        val (userId, _) = getUserContext()
+        
         val newTodo = Todo(
             title = createRequest.title.trim(),
             description = createRequest.description,
             completed = createRequest.completed
         )
-        val savedTodo = todoService.createTodo(newTodo)
+        val savedTodo = todoService.createTodo(newTodo, userId)
         return ResponseEntity.status(HttpStatus.CREATED)
             .body(ApiResponse.success(savedTodo.toResponse(), "Todo created successfully"))
     }
@@ -98,12 +108,13 @@ class TodoController(private val todoService: TodoService) {
     @PutMapping("/{id}")
     @Operation(
         summary = "Update todo (full update)",
-        description = "Updates an existing todo with all provided fields. Null fields will be set to default values."
+        description = "Updates an existing todo with all provided fields. Users can only update their own todos, admins can update any todo."
     )
     @ApiResponses(
         value = [
             SwaggerApiResponse(responseCode = "200", description = "Todo updated successfully"),
             SwaggerApiResponse(responseCode = "400", description = "Bad request - Invalid ID or input"),
+            SwaggerApiResponse(responseCode = "403", description = "Forbidden - You don't have permission to update this todo"),
             SwaggerApiResponse(responseCode = "404", description = "Todo not found"),
             SwaggerApiResponse(responseCode = "422", description = "Validation error"),
             SwaggerApiResponse(responseCode = "401", description = "Unauthorized")
@@ -116,8 +127,9 @@ class TodoController(private val todoService: TodoService) {
         @Valid @RequestBody updateRequest: UpdateTodoRequest,
     ): ResponseEntity<ApiResponse<TodoResponse>> {
         validateId(id)
+        val (userId, isAdmin) = getUserContext()
 
-        val existingTodo = todoService.getTodoById(id)
+        val existingTodo = todoService.getTodoById(id, userId, isAdmin)
             ?: return ResponseEntity.status(HttpStatus.NOT_FOUND)
                 .body(ApiResponse.error("Todo with ID $id not found"))
 
@@ -127,7 +139,7 @@ class TodoController(private val todoService: TodoService) {
             completed = updateRequest.completed ?: existingTodo.completed
         )
 
-        val updatedTodo = todoService.updateTodo(id, todoToUpdate)
+        val updatedTodo = todoService.updateTodo(id, todoToUpdate, userId, isAdmin)
             ?: return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(ApiResponse.error("Failed to update todo"))
 
@@ -137,12 +149,13 @@ class TodoController(private val todoService: TodoService) {
     @PatchMapping("/{id}")
     @Operation(
         summary = "Patch todo (partial update)",
-        description = "Partially updates an existing todo. Only provided fields will be updated, null fields will be ignored."
+        description = "Partially updates an existing todo. Only provided fields will be updated. Users can only update their own todos, admins can update any todo."
     )
     @ApiResponses(
         value = [
             SwaggerApiResponse(responseCode = "200", description = "Todo updated successfully"),
             SwaggerApiResponse(responseCode = "400", description = "Bad request - Invalid ID or input"),
+            SwaggerApiResponse(responseCode = "403", description = "Forbidden - You don't have permission to update this todo"),
             SwaggerApiResponse(responseCode = "404", description = "Todo not found"),
             SwaggerApiResponse(responseCode = "422", description = "Validation error"),
             SwaggerApiResponse(responseCode = "401", description = "Unauthorized")
@@ -155,13 +168,14 @@ class TodoController(private val todoService: TodoService) {
         @Valid @RequestBody updateRequest: UpdateTodoRequest,
     ): ResponseEntity<ApiResponse<TodoResponse>> {
         validateId(id)
+        val (userId, isAdmin) = getUserContext()
 
-        val existingTodo = todoService.getTodoById(id)
+        val existingTodo = todoService.getTodoById(id, userId, isAdmin)
             ?: return ResponseEntity.status(HttpStatus.NOT_FOUND)
                 .body(ApiResponse.error("Todo with ID $id not found"))
 
         val todoToPatch = existingTodo.applyUpdate(updateRequest)
-        val patchedTodo = todoService.updateTodo(id, todoToPatch)
+        val patchedTodo = todoService.updateTodo(id, todoToPatch, userId, isAdmin)
             ?: return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(ApiResponse.error("Failed to update todo"))
 
@@ -169,22 +183,21 @@ class TodoController(private val todoService: TodoService) {
     }
 
     /**
-     * Only ADMIN can delete todos.
-     * USER role will be rejected with 403 (access denied) handled by GlobalExceptionHandler.
+     * Delete a todo by ID.
+     * Users can delete their own todos, admins can delete any todo.
      */
-    @AdminOnly
     @DeleteMapping("/{id}")
     @Operation(
-        summary = "Delete todo by ID (Admin only)",
-        description = "Deletes a specific todo by its ID. Requires ADMIN role."
+        summary = "Delete todo by ID",
+        description = "Deletes a specific todo by its ID. Users can only delete their own todos, admins can delete any todo."
     )
     @ApiResponses(
         value = [
             SwaggerApiResponse(responseCode = "200", description = "Todo deleted successfully"),
             SwaggerApiResponse(responseCode = "400", description = "Bad request - Invalid ID"),
+            SwaggerApiResponse(responseCode = "403", description = "Forbidden - You don't have permission to delete this todo"),
             SwaggerApiResponse(responseCode = "404", description = "Todo not found"),
-            SwaggerApiResponse(responseCode = "401", description = "Unauthorized"),
-            SwaggerApiResponse(responseCode = "403", description = "Forbidden - Admin role required")
+            SwaggerApiResponse(responseCode = "401", description = "Unauthorized")
         ]
     )
     fun deleteTodo(
@@ -192,7 +205,9 @@ class TodoController(private val todoService: TodoService) {
         @PathVariable id: Long
     ): ResponseEntity<ApiResponse<Unit>> {
         validateId(id)
-        val deleted = todoService.deleteTodo(id)
+        val (userId, isAdmin) = getUserContext()
+        
+        val deleted = todoService.deleteTodo(id, userId, isAdmin)
         if (!deleted) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
                 .body(ApiResponse.error("Todo with ID $id not found"))
@@ -201,8 +216,7 @@ class TodoController(private val todoService: TodoService) {
     }
 
     /**
-     * Only ADMIN can delete todos.
-     * USER role will be rejected with 403 (access denied) handled by GlobalExceptionHandler.
+     * Only ADMIN can delete all todos.
      */
     @AdminOnly
     @DeleteMapping
@@ -222,9 +236,28 @@ class TodoController(private val todoService: TodoService) {
         return ResponseEntity.ok(ApiResponse.success("All todos deleted successfully"))
     }
 
+    /**
+     * Helper method to validate ID
+     */
     private fun validateId(id: Long) {
         if (id <= 0) {
             throw IllegalArgumentException("ID must be a positive number")
         }
+    }
+
+    /**
+     * Helper method to get current user context
+     * @return Pair of (userId, isAdmin)
+     */
+    private fun getUserContext(): Pair<Long, Boolean> {
+        val username = SecurityUtils.getCurrentUsername()
+            ?: throw IllegalStateException("No authenticated user found")
+        
+        val userId = userService.getUserIdByUsername(username)
+            ?: throw IllegalStateException("User not found: $username")
+        
+        val isAdmin = SecurityUtils.isCurrentUserAdmin()
+        
+        return Pair(userId, isAdmin)
     }
 }

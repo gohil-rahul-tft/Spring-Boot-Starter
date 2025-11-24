@@ -22,10 +22,11 @@ class GlobalExceptionHandler {
 
     @ExceptionHandler(AccessDeniedException::class)
     fun handleAccessDenied(ex: AccessDeniedException, request: WebRequest): ResponseEntity<ApiResponse<Any?>> {
-        // 403 Forbidden
+        // 403 Forbidden - use the exception message for more context
+        val message = ex.message ?: "Access denied"
         return ResponseEntity
             .status(HttpStatus.FORBIDDEN)
-            .body(ApiResponse.error("access denied"))
+            .body(ApiResponse.error(message))
     }
 
     @ExceptionHandler(AuthenticationException::class)
