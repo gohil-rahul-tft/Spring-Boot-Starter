@@ -12,7 +12,7 @@ description = "Demo project for Spring Boot"
 
 java {
     toolchain {
-        languageVersion = JavaLanguageVersion.of(21)
+        languageVersion = JavaLanguageVersion.of(17)
     }
 }
 
@@ -43,6 +43,9 @@ dependencies {
 
     // H2 database dependency
     implementation("com.h2database:h2")
+
+    // Swagger/OpenAPI documentation
+    implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.3.0")
 
     // For Kotlin support in Spring (annotations, reflection)
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin")

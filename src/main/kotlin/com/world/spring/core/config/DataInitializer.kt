@@ -1,4 +1,4 @@
-package com.world.spring.shared
+package com.world.spring.core.config
 
 import com.world.spring.features.auth.enums.RoleEnum
 import com.world.spring.features.auth.service.UserService
